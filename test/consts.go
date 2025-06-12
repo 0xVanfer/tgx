@@ -53,4 +53,8 @@ var TestMsgComponents = []tgx.MsgComponent{
 		EntitiyType: "text_link",
 		URL:         "https://google.com",
 	},
+	{
+		Text:        " @Vanfer0x",
+		EntitiyType: "mention",
+	},
 }

@@ -53,6 +53,13 @@ func CompileMsgComponents(components ...MsgComponent) (text string, entities []t
 				Length: len(component.Text),
 				URL:    component.URL,
 			})
+		case "mention":
+			text += component.Text
+			entities = append(entities, tgbotapi.MessageEntity{
+				Type:   component.EntitiyType,
+				Offset: currentLength,
+				Length: len(component.Text),
+			})
 		default:
 			text += component.Text
 		}
