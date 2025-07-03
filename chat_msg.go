@@ -16,7 +16,7 @@ type ChatMsg struct {
 }
 
 func (msg *ChatMsg) EditText(text string) error {
-	msgToEdit := tgbotapi.NewEditMessageText(msg.chat.ChatID, msg.Msg.MessageID, text)
+	msgToEdit := tgbotapi.NewEditMessageText(msg.Msg.Chat.ID, msg.Msg.MessageID, text)
 	msgToEdit.DisableWebPagePreview = msg.chat.disableWebPagePreview
 
 	_, err := msg.chat.sendWithRetry(msgToEdit)
@@ -24,7 +24,7 @@ func (msg *ChatMsg) EditText(text string) error {
 }
 
 func (msg *ChatMsg) ReplaceWith(replacingMsg *tgbotapi.Message) error {
-	msgToEdit := tgbotapi.NewEditMessageText(msg.chat.ChatID, msg.Msg.MessageID, fmt.Sprintf("%v", replacingMsg.Text))
+	msgToEdit := tgbotapi.NewEditMessageText(msg.Msg.Chat.ID, msg.Msg.MessageID, fmt.Sprintf("%v", replacingMsg.Text))
 	msgToEdit.DisableWebPagePreview = msg.chat.disableWebPagePreview
 	msgToEdit.Entities = replacingMsg.Entities
 
@@ -35,7 +35,7 @@ func (msg *ChatMsg) ReplaceWith(replacingMsg *tgbotapi.Message) error {
 // This function will only delete the tg msg, but the identifier will still be there.
 // If you want to delete the identifier, use chat.DeleteMsgs(identifier) instead.
 func (msg *ChatMsg) Delete() error {
-	msgToDelete := tgbotapi.NewDeleteMessage(msg.chat.ChatID, msg.Msg.MessageID)
+	msgToDelete := tgbotapi.NewDeleteMessage(msg.Msg.Chat.ID, msg.Msg.MessageID)
 	// Allow msg not found.
 	err := retry(func() error {
 		_, e := msg.chat.Bot.Send(msgToDelete)

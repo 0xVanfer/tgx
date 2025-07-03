@@ -41,9 +41,6 @@ func (tg *TgWrapper) RegisterChat(conf SingleChatConf) (*Chat, error) {
 	if conf.Identifier == "" {
 		return nil, tgxerrors.ErrIdentifierEmpty
 	}
-	if conf.ChatID == 0 {
-		return nil, tgxerrors.ErrZeroChatID
-	}
 	if conf.BotToken == "" {
 		return nil, tgxerrors.ErrEmptyBotToken
 	}
@@ -138,9 +135,13 @@ func (tg *TgWrapper) Monitor() {
 				if update.Message == nil || update.Message.Chat == nil {
 					continue
 				}
+				if update.Message.From.ID == bot.Self.ID {
+					continue
+				}
 				// Search for the chat by chat ID.
+				//
 				for _, chat := range b.Chats {
-					if chat.ChatID != update.Message.Chat.ID {
+					if chat.ChatID != 0 && chat.ChatID != update.Message.Chat.ID {
 						continue
 					}
 					// Consider the messageID of the msg reply to is the topic.
@@ -150,7 +151,7 @@ func (tg *TgWrapper) Monitor() {
 						topic = update.Message.ReplyToMessage.MessageID
 					}
 					// If chat topic is set to negative, ignore the topic. It will handle all messages under the chatID.
-					if chat.ChatTopic >= 0 && topic != chat.ChatTopic {
+					if chat.ChatID != 0 && chat.ChatTopic >= 0 && topic != chat.ChatTopic {
 						continue
 					}
 

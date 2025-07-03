@@ -33,10 +33,29 @@ type Chat struct {
 	handleMsgFuncs map[string]func(msg *tgbotapi.Message) (err error)
 }
 
-// Send text message to the chat.
+type ChatAndTopic struct {
+	ChatID    int64
+	ChatTopic int
+}
+
+func (chat *Chat) GetOverrideInfoFromMsg(msg *tgbotapi.Message) *ChatAndTopic {
+	if msg.ReplyToMessage != nil {
+		return &ChatAndTopic{
+			ChatID:    msg.Chat.ID,
+			ChatTopic: msg.ReplyToMessage.MessageID,
+		}
+	}
+	return &ChatAndTopic{
+		ChatID:    msg.Chat.ID,
+		ChatTopic: 0,
+	}
+}
+
+// Send text message to the chat. If targetChatOverride is not nil, it will override the chat ID and topic.
+//
 // If text is too long, it will be split into multiple messages.
 // The maximum length of a single message is 4096 characters.
-func (chat *Chat) SendTextMsg(text string) (msgsSent []*tgbotapi.Message, err error) {
+func (chat *Chat) SendTextMsg(targetChatOverride *ChatAndTopic, text string) (msgsSent []*tgbotapi.Message, err error) {
 	var spiltText []string
 	for len(text) > 4096 {
 		spiltText = append(spiltText, text[:4096])
@@ -47,7 +66,7 @@ func (chat *Chat) SendTextMsg(text string) (msgsSent []*tgbotapi.Message, err er
 	}
 
 	for _, t := range spiltText {
-		msg, e := chat.sendTextMsg(t, nil)
+		msg, e := chat.sendTextMsg(targetChatOverride, t, nil)
 		if e != nil {
 			return nil, e
 		}
@@ -56,9 +75,10 @@ func (chat *Chat) SendTextMsg(text string) (msgsSent []*tgbotapi.Message, err er
 	return
 }
 
-// Send text message with entities.
-// The entities SHOULD be defined in the MsgComponent struct.
-func (chat *Chat) SendTextMsgByComponents(components ...[]MsgComponent) (msgsSent []*tgbotapi.Message, err error) {
+// Send text message with entities. If targetChatOverride is not nil, it will override the chat ID and topic.
+//
+// The entities should be defined in the MsgComponent struct. And total entities length must be no longer than 100.
+func (chat *Chat) SendTextMsgByComponents(targetChatOverride *ChatAndTopic, components ...[]MsgComponent) (msgsSent []*tgbotapi.Message, err error) {
 	for _, component := range components {
 		text, entities := CompileMsgComponents(component...)
 		if len(text) == 0 {
@@ -71,7 +91,7 @@ func (chat *Chat) SendTextMsgByComponents(components ...[]MsgComponent) (msgsSen
 		if len(entities) > 100 {
 			return nil, tgxerrors.ErrTooManyEntities
 		}
-		msgSent, err := chat.sendTextMsg(text, entities)
+		msgSent, err := chat.sendTextMsg(targetChatOverride, text, entities)
 		if err != nil {
 			return nil, err
 		}
@@ -80,10 +100,11 @@ func (chat *Chat) SendTextMsgByComponents(components ...[]MsgComponent) (msgsSen
 	return
 }
 
-// Send a photo to the chat.
+// Send a photo to the chat. If targetChatOverride is not nil, it will override the chat ID and topic.
+//
 // If sending a local file, photoPath should be the path to the file.
 // If sending a online file, photoPath should be the URL to the file.
-func (chat *Chat) SendPhoto(photoPath string, isLocal bool) (msgSent *tgbotapi.Message, err error) {
+func (chat *Chat) SendPhoto(targetChatOverride *ChatAndTopic, photoPath string, isLocal bool) (msgSent *tgbotapi.Message, err error) {
 	var photo tgbotapi.RequestFileData
 	if isLocal {
 		photo = tgbotapi.FilePath(photoPath)
@@ -91,9 +112,11 @@ func (chat *Chat) SendPhoto(photoPath string, isLocal bool) (msgSent *tgbotapi.M
 		photo = tgbotapi.FileURL(photoPath)
 	}
 
-	msg := tgbotapi.NewPhoto(chat.ChatID, photo)
-	if chat.ChatTopic != 0 {
-		msg.ReplyToMessageID = chat.ChatTopic
+	chatID, topic := chat.decideChatAndTopic(targetChatOverride)
+
+	msg := tgbotapi.NewPhoto(chatID, photo)
+	if topic != 0 {
+		msg.ReplyToMessageID = topic
 	}
 	return chat.sendWithRetry(msg)
 }
@@ -212,6 +235,18 @@ func (chat *Chat) GetMsgs(identifier string) ([]*ChatMsg, error) {
 	return nil, tgxerrors.ErrIdentifierNotFound
 }
 
+func (chat *Chat) DeleteMsg(msg *tgbotapi.Message) error {
+	if msg == nil || msg.Chat == nil {
+		return tgxerrors.ErrMsgNotFound
+	}
+	deletingMsg := tgbotapi.NewDeleteMessage(msg.Chat.ID, msg.MessageID)
+	_, err := chat.sendWithRetry(deletingMsg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteMsgs deletes the tg messages with the given identifier, and free the identidier.
 func (chat *Chat) DeleteMsgs(identifier string) error {
 	msgs, err := chat.GetMsgs(identifier)
@@ -222,6 +257,15 @@ func (chat *Chat) DeleteMsgs(identifier string) error {
 		_ = msg.Delete()
 	}
 	chat.managedMsgs.Delete(identifier)
+	return nil
+}
+
+func (chat *Chat) DeleteMsgByID(chatID int64, msgID int) error {
+	msg := tgbotapi.NewDeleteMessage(chatID, msgID)
+	_, err := chat.sendWithRetry(msg)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -244,12 +288,25 @@ func (chat *Chat) sendWithRetry(msg tgbotapi.Chattable) (msgSent *tgbotapi.Messa
 
 // Internal function.
 // Chat must be valid; text length must < 4096; entities length must < 100.
-func (chat *Chat) sendTextMsg(text string, entities []tgbotapi.MessageEntity) (msgSent *tgbotapi.Message, err error) {
-	msg := tgbotapi.NewMessage(chat.ChatID, text)
+func (chat *Chat) sendTextMsg(targetChatOverride *ChatAndTopic, text string, entities []tgbotapi.MessageEntity) (msgSent *tgbotapi.Message, err error) {
+	chatID, topic := chat.decideChatAndTopic(targetChatOverride)
+
+	msg := tgbotapi.NewMessage(chatID, text)
 	msg.DisableWebPagePreview = chat.disableWebPagePreview
-	if chat.ChatTopic > 0 {
-		msg.ReplyToMessageID = chat.ChatTopic
+	if topic > 0 {
+		msg.ReplyToMessageID = topic
 	}
 	msg.Entities = entities
 	return chat.sendWithRetry(msg)
+}
+
+func (chat *Chat) decideChatAndTopic(targetChatOverride *ChatAndTopic) (chatID int64, topic int) {
+	if targetChatOverride != nil {
+		chatID = targetChatOverride.ChatID
+		topic = max(targetChatOverride.ChatTopic, 0)
+	} else {
+		chatID = chat.ChatID
+		topic = max(chat.ChatTopic, 0)
+	}
+	return
 }

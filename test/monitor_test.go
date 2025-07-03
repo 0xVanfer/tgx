@@ -14,7 +14,7 @@ func TestMonitor(t *testing.T) {
 	monitorTopicChat.RegisterHandleMsg("aaa", func(msg *tgbotapi.Message) (err error) {
 		text := msg.Text
 		if strings.Contains(text, "aaa") {
-			_, err := monitorTopicChat.SendTextMsg("You sent a message containing 'aaa'.")
+			_, err := monitorTopicChat.SendTextMsg(nil, "You sent a message containing 'aaa'.")
 			return err
 		}
 		return nil
@@ -23,7 +23,7 @@ func TestMonitor(t *testing.T) {
 	monitorTopicChat.RegisterHandleMsg("xxx", func(msg *tgbotapi.Message) (err error) {
 		text := msg.Text
 		if strings.Contains(text, "xxx") {
-			_, err := monitorTopicChat.SendTextMsg("You sent a message containing 'xxx'.")
+			_, err := monitorTopicChat.SendTextMsg(nil, "You sent a message containing 'xxx'.")
 			return err
 		}
 		return nil
@@ -38,19 +38,20 @@ func TestMonitor(t *testing.T) {
 				{Text: "."},
 				{Text: fmt.Sprintf(" @%s", msg.From.UserName), EntitiyType: "mention"},
 			}
-			_, err := entireChat.SendTextMsgByComponents(components)
+			_, err := entireChat.SendTextMsgByComponents(nil, components)
 			return err
 		}
 		return nil
 	})
 
 	monitorTopicChat.RegisterHandleCommand("timestamp", func(msg *tgbotapi.Message) (err error) {
-		_, err = monitorTopicChat.SendTextMsg(fmt.Sprintf("Current timestamp: %d", time.Now().Unix()))
+		_, err = monitorTopicChat.SendTextMsg(nil, fmt.Sprintf("Current timestamp: %d", time.Now().Unix()))
 		return
 	})
 
-	monitorTopicChat.RegisterHandleCommand("datetime", func(msg *tgbotapi.Message) (err error) {
-		_, err = monitorTopicChat.SendTextMsg(time.Now().UTC().Format(time.DateTime))
+	monitorEverywhere.RegisterHandleCommand("datetime", func(msg *tgbotapi.Message) (err error) {
+		overrideInfo := monitorEverywhere.GetOverrideInfoFromMsg(msg)
+		_, err = monitorEverywhere.SendTextMsg(overrideInfo, time.Now().UTC().Format(time.DateTime))
 		return
 	})
 

@@ -10,8 +10,8 @@ import (
 
 // Sending two simple messeges to the topic.
 func TestSendTextMsg(t *testing.T) {
-	_, _ = msgTopicChat.SendTextMsg("hello world")
-	_, _ = msgTopicChat.SendTextMsgByComponents(TestMsgComponents)
+	_, _ = msgTopicChat.SendTextMsg(nil, "hello world")
+	_, _ = msgTopicChat.SendTextMsgByComponents(nil, TestMsgComponents)
 }
 
 // Sending a long text to the topic.
@@ -22,7 +22,7 @@ func TestSendLongText(t *testing.T) {
 		text += "abcd"
 	}
 	text += "This start at 8192."
-	_, _ = msgTopicChat.SendTextMsg(text)
+	_, _ = msgTopicChat.SendTextMsg(nil, text)
 }
 
 // Entities length must be shorter than 100 in one text.
@@ -41,7 +41,7 @@ func TestSendLongComponents(t *testing.T) {
 			Text: "simple",
 		})
 	}
-	_, err := msgTopicChat.SendTextMsgByComponents(components)
+	_, err := msgTopicChat.SendTextMsgByComponents(nil, components)
 	fmt.Println(err)
 }
 
@@ -50,11 +50,11 @@ func TestSendPhoto(t *testing.T) {
 	photo0 := "https://ethereum.org/images/favicon.png"
 	photo1 := "../internal/assets/favicon.png"
 
-	msgTopicChat.SendTextMsg("this is a online photo")
-	_, _ = msgTopicChat.SendPhoto(photo0, false)
+	msgTopicChat.SendTextMsg(nil, "this is a online photo")
+	_, _ = msgTopicChat.SendPhoto(nil, photo0, false)
 
-	msgTopicChat.SendTextMsg("this is a local photo")
-	_, _ = msgTopicChat.SendPhoto(photo1, true)
+	msgTopicChat.SendTextMsg(nil, "this is a local photo")
+	_, _ = msgTopicChat.SendPhoto(nil, photo1, true)
 }
 
 // Relatively complicated message handling.
@@ -64,8 +64,8 @@ func TestEditMsg(t *testing.T) {
 	msgIdentifierComplicated := "msg_complicated"
 
 	// Send a simple text message
-	msgSimple, _ := msgTopicChat.SendTextMsg("This is a msg to be edited")
-	msgComplicated, _ := msgTopicChat.SendTextMsgByComponents(TestMsgComponents)
+	msgSimple, _ := msgTopicChat.SendTextMsg(nil, "This is a msg to be edited")
+	msgComplicated, _ := msgTopicChat.SendTextMsgByComponents(nil, TestMsgComponents)
 
 	// Register the messages with their identifiers
 	msgTopicChat.RegisterMsgs(msgSimple, msgIdentifierSimple, "")

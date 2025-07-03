@@ -15,4 +15,6 @@ var (
 
 	ErrZeroChatID    = errors.New("tgx: chat_id is 0")
 	ErrEmptyBotToken = errors.New("tgx: bot_token is empty")
+
+	ErrMsgNotFound = errors.New("tgx: msg or msg.Chat is nil")
 )
