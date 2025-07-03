@@ -8,25 +8,31 @@ import (
 	"github.com/0xVanfer/tgx"
 )
 
+// Sending two simple messeges to the topic.
 func TestSendTextMsg(t *testing.T) {
-	// Send a simple text message
-	_, _ = chatDefault.SendTextMsg("hello world")
-	_, _ = chatDefault.SendTextMsgByComponents(TestMsgComponents)
+	_, _ = msgTopicChat.SendTextMsg("hello world")
+	_, _ = msgTopicChat.SendTextMsgByComponents(TestMsgComponents)
 }
 
+// Sending a long text to the topic.
+// Expected to receive three msgs instead of one. Text will be spilt at length 4096 * n.
 func TestSendLongText(t *testing.T) {
 	var text string
-	for range 1024 {
+	for range 2048 {
 		text += "abcd"
 	}
-	text += "This start at 4096."
-	_, _ = chatDefault.SendTextMsg(text)
+	text += "This start at 8192."
+	_, _ = msgTopicChat.SendTextMsg(text)
 }
 
+// Entities length must be shorter than 100 in one text.
+// Since it's hard to decide how to spilt the entities, we just return error.
+// If the range here is 100, no error will be returned.
+// If the range is 101 or more, an error "tgx: entities length is too long" is expected.
 func TestSendLongComponents(t *testing.T) {
 	var components []tgx.MsgComponent
 	// The amount of components with non empty entity type MUST be shorter then 100.
-	for range 100 {
+	for range 101 {
 		components = append(components, tgx.MsgComponent{
 			Text:        "abcd",
 			EntitiyType: "bold",
@@ -35,42 +41,50 @@ func TestSendLongComponents(t *testing.T) {
 			Text: "simple",
 		})
 	}
-	_, err := chatDefault.SendTextMsgByComponents(components)
+	_, err := msgTopicChat.SendTextMsgByComponents(components)
 	fmt.Println(err)
 }
 
+// Sending 2 pics from online and local.
 func TestSendPhoto(t *testing.T) {
 	photo0 := "https://ethereum.org/images/favicon.png"
-	photo1 := "./favicon.png"
+	photo1 := "../internal/assets/favicon.png"
 
-	chatDefault.SendTextMsg("this is a online photo")
-	_, _ = chatDefault.SendPhoto(photo0, false)
+	msgTopicChat.SendTextMsg("this is a online photo")
+	_, _ = msgTopicChat.SendPhoto(photo0, false)
 
-	chatDefault.SendTextMsg("this is a local photo")
-	_, _ = chatDefault.SendPhoto(photo1, true)
+	msgTopicChat.SendTextMsg("this is a local photo")
+	_, _ = msgTopicChat.SendPhoto(photo1, true)
 }
 
+// Relatively complicated message handling.
+// Will register the msg send and then edit it, replace it with another msg and finally delete it.
 func TestEditMsg(t *testing.T) {
 	msgIdentifierSimple := "msg_to_be_edited"
 	msgIdentifierComplicated := "msg_complicated"
 
 	// Send a simple text message
-	msgSimple, _ := chatDefault.SendTextMsg("this is a msg to be edited")
-	msgComplicated, _ := chatDefault.SendTextMsgByComponents(TestMsgComponents)
+	msgSimple, _ := msgTopicChat.SendTextMsg("This is a msg to be edited")
+	msgComplicated, _ := msgTopicChat.SendTextMsgByComponents(TestMsgComponents)
 
-	chatDefault.RegisterMsgs(msgSimple, msgIdentifierSimple, "")
-	chatDefault.RegisterMsgs(msgComplicated, msgIdentifierComplicated, "")
+	// Register the messages with their identifiers
+	msgTopicChat.RegisterMsgs(msgSimple, msgIdentifierSimple, "")
+	msgTopicChat.RegisterMsgs(msgComplicated, msgIdentifierComplicated, "")
 
+	// Edit the simple message
 	time.Sleep(time.Second * 2)
-	simple, _ := chatDefault.GetMsg(msgIdentifierSimple)
+	simple, _ := msgTopicChat.GetMsg(msgIdentifierSimple)
 	_ = simple.EditText("this is a edited msg")
 
+	// Edit the message and make it same as the target one.
 	time.Sleep(time.Second * 2)
 	_ = simple.ReplaceWith(msgComplicated[0])
 
+	// Finally delete the messages.
 	time.Sleep(time.Second * 2)
 	_ = simple.Delete()
 
-	chatDefault.DeleteMsgs(msgIdentifierSimple)
-	chatDefault.DeleteMsgs(msgIdentifierComplicated)
+	// Delete the registered messages by their identifiers.
+	msgTopicChat.DeleteMsgs(msgIdentifierSimple)
+	msgTopicChat.DeleteMsgs(msgIdentifierComplicated)
 }

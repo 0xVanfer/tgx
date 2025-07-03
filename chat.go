@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/0xVanfer/tgx/internal/tgxerrors"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -21,6 +22,15 @@ type Chat struct {
 
 	// map[identifier] = msg info || []msg info
 	managedMsgs sync.Map
+
+	// To handle commands.
+	// map[command string] = func(msg *tgbotapi.Message) (err error)
+	handleCommandFuncs map[string]func(msg *tgbotapi.Message) (err error)
+
+	// To handle normal messages.
+	// Each different logic can be registered with a different function.
+	// To manage the functions, use a map to make registered functions easy to find.
+	handleMsgFuncs map[string]func(msg *tgbotapi.Message) (err error)
 }
 
 // Send text message to the chat.
@@ -56,10 +66,10 @@ func (chat *Chat) SendTextMsgByComponents(components ...[]MsgComponent) (msgsSen
 			continue
 		}
 		if len(text) > 4096 {
-			return nil, ErrTextTooLong
+			return nil, tgxerrors.ErrTextTooLong
 		}
 		if len(entities) > 100 {
-			return nil, ErrTooManyEntities
+			return nil, tgxerrors.ErrTooManyEntities
 		}
 		msgSent, err := chat.sendTextMsg(text, entities)
 		if err != nil {
@@ -88,6 +98,39 @@ func (chat *Chat) SendPhoto(photoPath string, isLocal bool) (msgSent *tgbotapi.M
 	return chat.sendWithRetry(msg)
 }
 
+func (chat *Chat) RegisterHandleCommand(command string, handleFunc func(msg *tgbotapi.Message) (err error)) {
+	// Map must be initialized when the chat is created.
+	chat.handleCommandFuncs[command] = handleFunc
+}
+
+func (chat *Chat) HandleCommand(msg *tgbotapi.Message) error {
+	commandStr := msg.Command()
+	funcx, exist := chat.handleCommandFuncs[commandStr]
+	if !exist {
+		return nil
+	}
+	return funcx(msg)
+}
+
+func (chat *Chat) RegisterHandleMsg(funcIdentifier string, handleFunc func(msg *tgbotapi.Message) (err error)) {
+	// Map must be initialized when the chat is created.
+	chat.handleMsgFuncs[funcIdentifier] = handleFunc
+}
+
+func (chat *Chat) HandleMsg(msg *tgbotapi.Message) map[string]error {
+	errorRes := make(map[string]error)
+	for identidier, funcx := range chat.handleMsgFuncs {
+		if funcx == nil {
+			continue
+		}
+		err := funcx(msg)
+		if err != nil {
+			errorRes[identidier] = err
+		}
+	}
+	return errorRes
+}
+
 // ========== Msg Related ==========
 
 // An identifier can represent a single message or a list of messages.
@@ -96,7 +139,7 @@ func (chat *Chat) SendPhoto(photoPath string, isLocal bool) (msgSent *tgbotapi.M
 func (chat *Chat) RegisterMsg(msg *tgbotapi.Message, identifier string, description string) (*ChatMsg, error) {
 	_, loaded := chat.managedMsgs.Load(identifier)
 	if loaded {
-		return nil, ErrIdentifierAlreadyExists
+		return nil, tgxerrors.ErrIdentifierAlreadyExists
 	}
 	newMsg := &ChatMsg{
 		chat:        chat,
@@ -114,7 +157,7 @@ func (chat *Chat) RegisterMsg(msg *tgbotapi.Message, identifier string, descript
 func (chat *Chat) RegisterMsgs(msgs []*tgbotapi.Message, identifier string, description string) ([]*ChatMsg, error) {
 	_, loaded := chat.managedMsgs.Load(identifier)
 	if loaded {
-		return nil, ErrIdentifierAlreadyExists
+		return nil, tgxerrors.ErrIdentifierAlreadyExists
 	}
 	newMsgs := make([]*ChatMsg, 0)
 	for _, msg := range msgs {
@@ -137,7 +180,7 @@ func (chat *Chat) RegisterMsgs(msgs []*tgbotapi.Message, identifier string, desc
 func (chat *Chat) GetMsg(identifier string) (*ChatMsg, error) {
 	msgI, exist := chat.managedMsgs.Load(identifier)
 	if !exist {
-		return nil, ErrIdentifierNotFound
+		return nil, tgxerrors.ErrIdentifierNotFound
 	}
 	msg, ok := msgI.(*ChatMsg)
 	if ok {
@@ -147,7 +190,7 @@ func (chat *Chat) GetMsg(identifier string) (*ChatMsg, error) {
 	if ok && len(msgs) > 0 {
 		return msgs[0], nil
 	}
-	return nil, ErrIdentifierNotFound
+	return nil, tgxerrors.ErrIdentifierNotFound
 }
 
 // GetMsgs returns the messages with the given identifier.
@@ -156,7 +199,7 @@ func (chat *Chat) GetMsg(identifier string) (*ChatMsg, error) {
 func (chat *Chat) GetMsgs(identifier string) ([]*ChatMsg, error) {
 	msgI, exist := chat.managedMsgs.Load(identifier)
 	if !exist {
-		return nil, ErrIdentifierNotFound
+		return nil, tgxerrors.ErrIdentifierNotFound
 	}
 	msgs, ok := msgI.([]*ChatMsg)
 	if ok {
@@ -166,7 +209,7 @@ func (chat *Chat) GetMsgs(identifier string) ([]*ChatMsg, error) {
 	if ok {
 		return []*ChatMsg{msg}, nil
 	}
-	return nil, ErrIdentifierNotFound
+	return nil, tgxerrors.ErrIdentifierNotFound
 }
 
 // DeleteMsgs deletes the tg messages with the given identifier, and free the identidier.
@@ -204,7 +247,7 @@ func (chat *Chat) sendWithRetry(msg tgbotapi.Chattable) (msgSent *tgbotapi.Messa
 func (chat *Chat) sendTextMsg(text string, entities []tgbotapi.MessageEntity) (msgSent *tgbotapi.Message, err error) {
 	msg := tgbotapi.NewMessage(chat.ChatID, text)
 	msg.DisableWebPagePreview = chat.disableWebPagePreview
-	if chat.ChatTopic != 0 {
+	if chat.ChatTopic > 0 {
 		msg.ReplyToMessageID = chat.ChatTopic
 	}
 	msg.Entities = entities

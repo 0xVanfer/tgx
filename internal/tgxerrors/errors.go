@@ -1,4 +1,4 @@
-package tgx
+package tgxerrors
 
 import (
 	"errors"
