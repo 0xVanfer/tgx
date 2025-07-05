@@ -10,10 +10,12 @@ import (
 
 // The wrapper for telegram bot API to record the chats information.
 //
+// Supports:
+// - Sending and managing messages in the registered chats.
+// - Monitor all registered bots for incoming commands.
+//
 // Use RegisterChat() to register a chat;
 // Use GetChat() to get the chat information.
-//
-// More functions are avaliable under the return struct of GetChat().
 type TgWrapper struct {
 	chatsByIdentifier sync.Map // map[identifier(string)]*Chat
 
@@ -121,7 +123,7 @@ func (tg *TgWrapper) GetAllRegisteredBots() (bots map[string]*botInfo) {
 // Monitor all registered bots for incoming commands.
 func (tg *TgWrapper) Monitor() {
 	updatesConf := tgbotapi.NewUpdate(0)
-	updatesConf.Timeout = 10
+	updatesConf.Timeout = 10 // TODO: make it configurable?
 
 	bots := tg.GetAllRegisteredBots()
 	for _, info := range bots {
@@ -135,12 +137,14 @@ func (tg *TgWrapper) Monitor() {
 				if update.Message == nil || update.Message.Chat == nil {
 					continue
 				}
+				// Actually will not use this.
 				if update.Message.From.ID == bot.Self.ID {
 					continue
 				}
 				// Search for the chat by chat ID.
-				//
 				for _, chat := range b.Chats {
+					// If chat.ChatID is 0, should handle all messages.
+					// Otherwise, only handle messages in the chat with the same chat ID.
 					if chat.ChatID != 0 && chat.ChatID != update.Message.Chat.ID {
 						continue
 					}

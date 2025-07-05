@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/0xVanfer/tgx/internal/tgxerrors"
+	"github.com/0xVanfer/tgx/internal/tgxutils"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -16,9 +17,13 @@ type Chat struct {
 	Identifier  string
 	Description string
 
+	// I don't like the web page preview, so I set it to true by default.
+	// If you want to enable it, use SetDisableWebPagePreview() to set it
 	disableWebPagePreview bool
-	retry                 int
-	retryInterval         time.Duration
+
+	// Set retry times and interval.
+	retry         int
+	retryInterval time.Duration
 
 	// map[identifier] = msg info || []msg info
 	managedMsgs sync.Map
@@ -38,7 +43,11 @@ type ChatAndTopic struct {
 	ChatTopic int
 }
 
+// Turn the msg into a ChatAndTopic struct.
 func (chat *Chat) GetOverrideInfoFromMsg(msg *tgbotapi.Message) *ChatAndTopic {
+	if msg == nil {
+		return nil
+	}
 	if msg.ReplyToMessage != nil {
 		return &ChatAndTopic{
 			ChatID:    msg.Chat.ID,
@@ -278,7 +287,7 @@ func (chat *Chat) SetDisableWebPagePreview(disable bool)   { chat.disableWebPage
 // ========== Internal ==========
 
 func (chat *Chat) sendWithRetry(msg tgbotapi.Chattable) (msgSent *tgbotapi.Message, err error) {
-	err = retry(func() error {
+	err = tgxutils.Retry(func() error {
 		newMsg, e := chat.Bot.Send(msg)
 		msgSent = &newMsg
 		return e

@@ -3,6 +3,7 @@ package tgx
 import (
 	"fmt"
 
+	"github.com/0xVanfer/tgx/internal/tgxutils"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -37,7 +38,7 @@ func (msg *ChatMsg) ReplaceWith(replacingMsg *tgbotapi.Message) error {
 func (msg *ChatMsg) Delete() error {
 	msgToDelete := tgbotapi.NewDeleteMessage(msg.Msg.Chat.ID, msg.Msg.MessageID)
 	// Allow msg not found.
-	err := retry(func() error {
+	err := tgxutils.Retry(func() error {
 		_, e := msg.chat.Bot.Send(msgToDelete)
 		if e.Error() == "Bad Request: message to delete not found" {
 			return nil
