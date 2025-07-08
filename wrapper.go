@@ -90,6 +90,15 @@ type botInfo struct {
 	Chats []*Chat
 }
 
+func (b *botInfo) hasHandler() bool {
+	for _, chat := range b.Chats {
+		if len(chat.handleCommandFuncs) > 0 || len(chat.handleMsgFuncs) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // By reading 'tg.allRelatedBots', we can get all registered bots.
 func (tg *TgWrapper) GetAllRegisteredBots() (bots map[string]*botInfo) {
 	bots = make(map[string]*botInfo)
@@ -127,11 +136,16 @@ func (tg *TgWrapper) Monitor() {
 
 	bots := tg.GetAllRegisteredBots()
 	for _, info := range bots {
+		if info.Bot == nil {
+			// No bot registered, skip this bot.
+			continue
+		}
+		if !info.hasHandler() {
+			// No handler registered, skip this bot.
+			continue
+		}
 		go func(b *botInfo) {
 			bot := b.Bot
-			if bot == nil {
-				return
-			}
 			updates := bot.GetUpdatesChan(updatesConf)
 			for update := range updates {
 				if update.Message == nil || update.Message.Chat == nil {

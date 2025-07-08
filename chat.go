@@ -174,7 +174,7 @@ func (chat *Chat) RegisterMsg(msg *tgbotapi.Message, identifier string, descript
 		return nil, tgxerrors.ErrIdentifierAlreadyExists
 	}
 	newMsg := &ChatMsg{
-		chat:        chat,
+		Chat:        chat,
 		Msg:         msg,
 		Identifier:  identifier,
 		Description: description,
@@ -194,7 +194,7 @@ func (chat *Chat) RegisterMsgs(msgs []*tgbotapi.Message, identifier string, desc
 	newMsgs := make([]*ChatMsg, 0)
 	for _, msg := range msgs {
 		newMsg := &ChatMsg{
-			chat:        chat,
+			Chat:        chat,
 			Msg:         msg,
 			Identifier:  identifier,
 			Description: description,
@@ -223,6 +223,17 @@ func (chat *Chat) GetMsg(identifier string) (*ChatMsg, error) {
 		return msgs[0], nil
 	}
 	return nil, tgxerrors.ErrIdentifierNotFound
+}
+
+// Will create a ChatMsg with the given message.
+// This is useful when you want to create a ChatMsg without registering it.
+func (chat *Chat) ToChatMsg(msg *tgbotapi.Message) *ChatMsg {
+	return &ChatMsg{
+		Chat:        chat,
+		Msg:         msg,
+		Identifier:  "",
+		Description: "",
+	}
 }
 
 // GetMsgs returns the messages with the given identifier.
