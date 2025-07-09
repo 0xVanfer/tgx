@@ -9,12 +9,10 @@ import (
 )
 
 type ChatMsg struct {
-	Chat *Chat
-
-	Msg *tgbotapi.Message
-
-	Identifier  string
-	Description string
+	Chat        *Chat             `json:"chat" mapstructure:"chat"`
+	Msg         *tgbotapi.Message `json:"msg" mapstructure:"msg"`
+	Identifier  string            `json:"identifier" mapstructure:"identifier"`
+	Description string            `json:"description,omitempty" mapstructure:"description"`
 }
 
 // EditText edits the text of the message.

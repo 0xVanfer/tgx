@@ -4,9 +4,9 @@ import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 // The amount of components with non empty entity type MUST be length then 100.
 type MsgComponent struct {
-	Text        string // The original text
-	EntitiyType string // The type of the entity, can be "bold", "italic", "underline", "strikethrough", "text_link"
-	URL         string // The URL for the text_link entity
+	Text        string `json:"text" mapstructure:"text"`               // The original text
+	EntitiyType string `json:"entity_type" mapstructure:"entity_type"` // The type of the entity, can be "bold", "italic", "underline", "strikethrough", "text_link"
+	URL         string `json:"url" mapstructure:"url"`                 // The URL for the text_link entity
 
 	// User        tgbotapi.User // The user for the text_mention entity
 }

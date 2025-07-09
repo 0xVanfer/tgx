@@ -18,11 +18,11 @@ import (
 //
 // 4. The ChatID is -100123456789 (adding -100 at the beginning), and the ChatTopic is 2. 21 is the message ID, which is not used in this package.
 type SingleChatConf struct {
-	BotToken    string `json:"bot_token"`
-	ChatID      int64  `json:"chat_id"`
-	ChatTopic   int    `json:"chat_topic"`
-	Identifier  string `json:"identifier"`
-	Description string `json:"description,omitempty"`
+	BotToken    string `json:"bot_token" mapstructure:"bot_token"`
+	ChatID      int64  `json:"chat_id" mapstructure:"chat_id"`
+	ChatTopic   int    `json:"chat_topic" mapstructure:"chat_topic"`
+	Identifier  string `json:"identifier" mapstructure:"identifier"`
+	Description string `json:"description,omitempty" mapstructure:"description"`
 }
 
 // Each conf should be valid, otherwise will return an error.
