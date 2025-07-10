@@ -1,6 +1,7 @@
 package tgx
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -173,8 +174,14 @@ func (tg *TgWrapper) Monitor() {
 						continue
 					}
 
-					chat.HandleCommand(update.Message)
-					chat.HandleMsg(update.Message)
+					err := chat.HandleCommand(update.Message)
+					if err != nil {
+						fmt.Printf("Error in chat [%s]: %s\n", chat.Identifier, err.Error())
+					}
+					errors := chat.HandleMsg(update.Message)
+					for _, err := range errors {
+						fmt.Printf("Error in chat [%s]: %s\n", chat.Identifier, err.Error())
+					}
 				}
 			}
 		}(info)

@@ -1,6 +1,7 @@
 package tgx
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -131,8 +132,18 @@ func (chat *Chat) SendPhoto(targetChatOverride *ChatAndTopic, photoPath string, 
 }
 
 func (chat *Chat) RegisterHandleCommand(command string, handleFunc func(msg *tgbotapi.Message) (err error)) {
+	if chat.handleCommandFuncs == nil {
+		chat.handleCommandFuncs = make(map[string]func(msg *tgbotapi.Message) (err error))
+	}
 	// Map must be initialized when the chat is created.
-	chat.handleCommandFuncs[command] = handleFunc
+	chat.handleCommandFuncs[command] = func(msg *tgbotapi.Message) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("tgx: handle command [%s] panic: %v", command, r)
+			}
+		}()
+		return handleFunc(msg)
+	}
 }
 
 func (chat *Chat) HandleCommand(msg *tgbotapi.Message) error {
@@ -145,8 +156,18 @@ func (chat *Chat) HandleCommand(msg *tgbotapi.Message) error {
 }
 
 func (chat *Chat) RegisterHandleMsg(funcIdentifier string, handleFunc func(msg *tgbotapi.Message) (err error)) {
+	if chat.handleMsgFuncs == nil {
+		chat.handleMsgFuncs = make(map[string]func(msg *tgbotapi.Message) (err error))
+	}
 	// Map must be initialized when the chat is created.
-	chat.handleMsgFuncs[funcIdentifier] = handleFunc
+	chat.handleMsgFuncs[funcIdentifier] = func(msg *tgbotapi.Message) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = fmt.Errorf("tgx: handle msg [%s] panic: %v", funcIdentifier, r)
+			}
+		}()
+		return handleFunc(msg)
+	}
 }
 
 func (chat *Chat) HandleMsg(msg *tgbotapi.Message) map[string]error {
